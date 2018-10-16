@@ -5,15 +5,25 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <assert.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
 
 int main ()
 {
-	int mypid = getpid ();
-    char pidBuffer [10] = {};
-    sprintf (pidBuffer, "%d", mypid);
-	printf ("%s\n", pidBuffer);
 
-    mkfifo(pidBuffer, 0644);
+	pid_t pid = 0;
+	pid = fork ();
+	if (pid == 0)
+		sleep(3);
+    else
+    {
+		int a = wait(0);
+        printf ("printf wait1 returned %d\n", a);
+        int b = wait(0);
+        printf ("printf wait1 returned %d\n", b);
+	}
 
 	return 0;
 }
