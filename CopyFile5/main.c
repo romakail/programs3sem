@@ -39,13 +39,21 @@ int main (int argc, char** argv)
         }
 
         char followerName [NAME_PID_LEN] = {};
+
         int rdQueFd = open ("readersque", O_RDWR);
+        if (rdQueFd == -1)
+        {
+            printf ("error with opening readersque\n");
+            return -1;
+        }
 
         int readRet = read (rdQueFd, followerName, NAME_PID_LEN);
 
+
         //if a process dies here other end won't close
 
-        int fdTo = open (followerName, O_WRONLY);
+        //int fdTo = open (followerName, O_WRONLY);
+        int fdTo = open (followerName, O_WRONLY | O_NONBLOCK);
         if (errno == ENXIO)
         {
         	printf ("errno == ENXIO\n");
@@ -87,12 +95,12 @@ int main (int argc, char** argv)
 
 		//
         int rdQueFd = open ("readersque", O_WRONLY);
-        write (rdQueFd, namePid, NAME_PID_LEN);
+		write (rdQueFd, namePid, NAME_PID_LEN);
 		//
 
 
-        int fdFrom = open (namePid, O_RDONLY);
-	//fcntl (fdFrom, F_SETFL, O_RDONLY | O_NONBLOCK);
+		int fdFrom = open (namePid, O_RDONLY);
+        //fcntl (fdFrom, F_SETFL, O_RDONLY | O_NONBLOCK);
 
 
         char buffer [BUFFER_LENGHT] = {};

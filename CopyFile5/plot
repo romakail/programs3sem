@@ -1,0 +1,19 @@
+streamer:
+	
+	creates pidFifo
+	puts pid into queue
+	busy waits for opening on the other side
+		sleep
+		open (name, O_WRONLY | O_NONBLOCK)
+		checking errno with ENXIO
+	fcntl (O_WRONLY)
+	starts writing
+
+
+follower:
+	gets pid from the queue
+	open (name, O_RDONLY)
+	fcntl (O_RDONLY)
+	starts reading
+
+
