@@ -14,8 +14,8 @@
 #define NAME_PID_LEN 20
 #define MAX_SLEEP_TIME 10
 
-#define PRINT(args...)    \
-    printf(args);      \
+#define PRINT(args...)      \
+    printf(args);           \
     fflush (stdout);        \
 
 
@@ -72,43 +72,50 @@ int main (int argc, char** argv)
 
 int follower ()
 {
-    PRINT ("hey, I am follower\n")
-    char streamerName [NAME_PID_LEN] = {};
 
-    int rdQueFd = open ("readersque", O_RDWR);
-    if (rdQueFd == -1)
+
+    char namePid [NAME_PID_LEN] = {};
+    sprintf (namePid, "%d", getpid());
+    mkfifo (namePid, 0644);
+
+    int fdFrom = open (namePid, O_RDONLY | O_NONBLOCK);
+    if (fdFrom == -1)
     {
-        printf ("error with opening readersque\n");
+        printf ("some error occured with opening Fifo for RD_ONLY | O_NONBLOCK, pid = %s\n", namePid);
         return -1;
     }
 
-    int readRet = read (rdQueFd, streamerName, NAME_PID_LEN);
-    PRINT ("Got PID from the queue\nPID = %s\n", streamerName)
-        //-----got pid from the queue
-        //int fdFrom = open (streamerName, O_RDONLY | O_NONBLOCK);
-    int fdFrom = open (streamerName, O_RDONLY);
-    PRINT ("opened for writeonly, fdFrom = %d\n", fdFrom)
-        //-----we are being waited on the other side
-        //fcntl (fdFrom, F_SETFL, O_RDONLY);
-        //-----for proper communication
-
-        //-----starting to write
+    int folQueFd = open ("followersqueue", O_RDWR);                 //-----I am not sure with O_RDWR
+    write (folQueFd, namePid, NAME_PID_LEN);
+    //raise(SIGKILL);
+    int sleepTime = 0;
     char buffer [BUFFER_LENGHT] = {};
-
-    int readRetValue = BUFFER_LENGHT;
-
-    while (readRetValue == BUFFER_LENGHT)
+    int readRetValue = 0;
+    do
     {
-        readRetValue = read (fdFrom, buffer, BUFFER_LENGHT);
-        if (readRetValue > 0)
-            write (STDOUT_FILENO, buffer, readRetValue);
+        sleep (sleepTime);
+        readRetValue = read(fdFrom, buffer, BUFFER_LENGHT);
+        sleepTime++;
+    } while ((readRetValue == 0) && (sleepTime <= MAX_SLEEP_TIME + 1));
+
+    if (readRetValue == 0)
+    {
+        printf ("file with name /'%s/' was not opened on the other side\n", namePid);
+        return -1;
     }
-    //-----finishing to write
 
-    close  (fdFrom);
-    close (rdQueFd);
+    fcntl(fdFrom, O_RDONLY);
 
-    unlink (streamerName);
+    while (readRetValue != 0)
+    {
+        write (STDOUT_FILENO, buffer, readRetValue);
+        readRetValue = read (fdFrom, buffer, BUFFER_LENGHT);
+    }
+
+    close (fdFrom);
+    close (folQueFd);
+
+    unlink (namePid);
 
     return 0;
 }
@@ -117,56 +124,42 @@ int follower ()
 
 int streamer (char* fileFromName)
 {
-    PRINT ("hey, I am streamer\n")
     int fdFrom = open (fileFromName, 0);
     if (fdFrom == -1)
     {
         printf ("file do not exists\n");
         return -1;
     }
-    //-----opened the fileFrom
 
-    char namePid [NAME_PID_LEN] = {};
-    sprintf (namePid, "%d", getpid());
-    mkfifo (namePid, 0644);
-    PRINT ("made a fifo, name = %s\n", namePid);
-    //-----created a pidFifo
-    int rdQueFd = open ("readersque", O_WRONLY);            //-----WR_ONLY waits while readersque will be opened for
-    write (rdQueFd, namePid, NAME_PID_LEN);
-    PRINT ("wrote pid into the queue\n")
-        //-----wrote pid into the queue
-    int fdTo = 0;
-    int sleepTime = 0;
-    do
+    int folQueFd = open ("followersqueue", O_RDWR);              //-----I am not sure about O_RDWR
+    if (folQueFd == -1)
     {
-        sleep (sleepTime);
-        PRINT ("I am in busy wait, sleepTime = %d\n", sleepTime)
-            PRINT ("namePid = \"%s\"", namePid)
-        if (errno == ENXIO)
-            printf ("errno = ENXIO\n");
+        printf ("error with opening followersqueue\n");
+        return -1;
+    }
 
-        sleep(20); exit(10);
-        fdTo = open (namePid, O_WRONLY | O_NONBLOCK);
-        PRINT ("fdTO = %d\n", fdTo)
-            if (sleepTime >= MAX_SLEEP_TIME)
-            {
-                printf ("Sorry I have slept to much\n");
-                printf ("Nobody opened from the other side\n");
-                return -1;
-            }
-        sleepTime++;
+    char followerName [NAME_PID_LEN] = {};
+    int folReadRet = read (folQueFd, followerName, NAME_PID_LEN);
+    if (folReadRet == -1)
+    {
+        printf ("some error with getting followers pid from main pipe\n");
+        printf ("read returned %d\n", folReadRet);
+        return -1;
+    }
 
-    } while ((fdTo == -1) && (sleepTime <= MAX_SLEEP_TIME));
-    //-----end of busy wait
-    fcntl (fdTo, F_SETFL, O_WRONLY);
+    //sleep(10);
+    int fdTo = open (followerName, O_WRONLY | O_NONBLOCK);
+    if(fdTo < 0) {
+        perror("fd on the other side has died\n");
+        return -1; // SUICIDE!!! C:
+    }
 
+    fcntl (fdTo, O_WRONLY);
 
-    //-----start writing
     char buffer [BUFFER_LENGHT] = {};
-
-
     int readRetValue = 1;
     int writeRetValue = 0;
+
     while (readRetValue != 0)
     {
         readRetValue  = read  (fdFrom, buffer, BUFFER_LENGHT);
@@ -176,9 +169,10 @@ int streamer (char* fileFromName)
         }
     }
 
-    close (fdFrom);
     close (fdTo);
-    close (rdQueFd);
+    close (fdFrom);
+
+    close (folQueFd);
 
     return 0;
 }

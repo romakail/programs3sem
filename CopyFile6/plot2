@@ -1,0 +1,21 @@
+streamer:
+	
+	gets pid from the queue
+	open (pidFile, O_WRONLY | O_NONBLOCK)
+	
+	fcntl (O_WRONLY)
+	writing to pipe
+
+follower:
+	
+	creates pid fifo	
+	open (pidFile, O_RDONLY | O_NONBLOCK)
+	
+	puts pid into the queue
+	
+	busy wait
+		read (dataPackage)
+		sleep()
+		checking dataPackage capacity
+	fcntl (O_RDONLY)
+	reading from fifo
