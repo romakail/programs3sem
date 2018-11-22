@@ -15,7 +15,7 @@ follower:
 	
 	busy wait
 		read ()
-		sleep(dataPackage)
+		sleep(sleepTime++)
 		checking dataPackage capacity
 	fcntl (O_RDONLY)
 	reading from fifo

@@ -13,17 +13,7 @@
 int main ()
 {
 
-	pid_t pid = 0;
-	pid = fork ();
-	if (pid == 0)
-		sleep(3);
-    else
-    {
-		int a = wait(0);
-        printf ("printf wait1 returned %d\n", a);
-        int b = wait(0);
-        printf ("printf wait1 returned %d\n", b);
-	}
+	printf ("AAAA = %d", sizeof (ssize_t));
 
 	return 0;
 }
