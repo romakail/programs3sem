@@ -92,7 +92,7 @@ int follower ()
     char buffer [BUFFER_LENGHT] = {};
     int readRetValue = 0;
 
-    //===========================================================================
+    //--------------------------Start of a critical section-----------------------
 
     do
     {
@@ -101,7 +101,7 @@ int follower ()
         sleepTime++;
     } while ((readRetValue == 0) && (sleepTime <= MAX_SLEEP_TIME + 1));
 
-    //===========================================================================
+    //---------------------------Finish of a critical section-------------------------
 
     if (readRetValue == 0)
     {
