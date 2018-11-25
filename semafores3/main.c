@@ -231,7 +231,7 @@ int streamer (void* shMemPtr, int semId, char* fileFromName)
     dumpSemafores(semId);
     sem_do3 (NO_FOL_FOR_FOL, -1, 0,                 // checking if a NEW follower triggered first sem_do3
              NO_FOL_FOR_FOL,  1, 0,
-             NO_STR_FOR_FOL,  1, SEM_UNDO)          //
+             NO_STR_FOR_FOL,  1, SEM_UNDO)
 
     PRINT ("3-in\n")
     dumpSemafores(semId);
@@ -243,22 +243,22 @@ int streamer (void* shMemPtr, int semId, char* fileFromName)
         //produce_item();
 
         PRINT ("inside-1\n")
-        dumpSemafores (semId);
-        sleep (3);
-        dumpSemafores (semId);
+        // dumpSemafores (semId);
+        // sleep (3);
+        // dumpSemafores (semId);
         // sem_do  (EMPTY        , -1, 0)
 
-        sem_do3 (EMPTY         , -1, 0,
-                 NO_FOL_FOR_STR, -1, IPC_NOWAIT,
-                 NO_FOL_FOR_STR,  1, 0)
+        sem_do3 (NO_FOL_FOR_STR, -1, IPC_NOWAIT,    // the order is dramatically important =(
+                 NO_FOL_FOR_STR,  1, IPC_NOWAIT,
+                 EMPTY         , -1, 0)
 
         PRINT ("inside-2\n")
         dumpSemafores (semId);
         // sem_do  (MUT_EX        , -1, 0)
 
-        sem_do3 (MUT_EX        , -1, 0,
+        sem_do3 (NO_FOL_FOR_STR,  1, IPC_NOWAIT,
                  NO_FOL_FOR_STR, -1, IPC_NOWAIT,
-                 NO_FOL_FOR_STR,  1, 0)
+                 MUT_EX        , -1, SEM_UNDO)
 
         //put_item();
         //-----------------------------start of a critical section----------------------------
@@ -276,7 +276,7 @@ int streamer (void* shMemPtr, int semId, char* fileFromName)
         //sleep(1);
         //-----------------------------end of a critical section---------------------------------
 
-        sem_do (MUT_EX,  1, 0)
+        sem_do (MUT_EX,  1, SEM_UNDO)
         sem_do (FULL  ,  1, 0)
 
         counter++;
@@ -344,14 +344,14 @@ int follower (void* shMemPtr, int semId)
     do
     {
         // sem_do  (FULL          , -1, 0)s
-        sem_do3(FULL          , -1, 0,
-                NO_STR_FOR_FOL, -1, IPC_NOWAIT,
-                NO_STR_FOR_FOL,  1, 0)
+        sem_do3(NO_STR_FOR_FOL, -1, IPC_NOWAIT,             // the order is dramatically important
+                NO_STR_FOR_FOL,  1, IPC_NOWAIT,
+                FULL          , -1, 0)
 
         // sem_do  (MUT_EX        , -1, 0)
-        sem_do3(MUT_EX        , -1, 0,
-                NO_STR_FOR_FOL, -1, IPC_NOWAIT,
-                NO_STR_FOR_FOL,  1, 0)
+        sem_do3(NO_STR_FOR_FOL, -1, IPC_NOWAIT,
+                NO_STR_FOR_FOL,  1, IPC_NOWAIT,
+                MUT_EX        , -1, SEM_UNDO)
 
         //get_item ()
         //-----------------------Start of a critical section-----------------------------
@@ -366,11 +366,11 @@ int follower (void* shMemPtr, int semId)
         }
 
 
-        sleep (1);
-        dumpSemafores(semId);
-        exit (0);
+        usleep (100000);
+        // dumpSemafores(semId);
+        // exit (0);
         //-----------------------End of a critical section-------------------------------
-        sem_do (MUT_EX,  1, 0)
+        sem_do (MUT_EX,  1, SEM_UNDO)
         sem_do (EMPTY ,  1, 0)
         //consume_item()
 
@@ -433,14 +433,14 @@ int initializeSemafores (int semId)
 int dumpSemafores (int semId)
 {
     printf ("------dump------\n");
-    printf ("INITIALIZATOR  = %d\n", semctl(semId, INITIALIZATOR, GETVAL));
-    printf ("NO_STR_FOR_STR = %d\n", semctl(semId, NO_STR_FOR_STR   , GETVAL));
-    printf ("NO_FOL_FOR_STR = %d\n", semctl(semId, NO_FOL_FOR_STR   , GETVAL));
-    printf ("NO_STR_FOR_FOL = %d\n", semctl(semId, NO_STR_FOR_FOL   , GETVAL));
-    printf ("NO_FOL_FOR_FOL = %d\n", semctl(semId, NO_FOL_FOR_FOL   , GETVAL));
-    printf ("MUT_EX         = %d\n", semctl(semId, MUT_EX       , GETVAL));
-    printf ("FULL           = %d\n", semctl(semId, FULL         , GETVAL));
-    printf ("EMPTY          = %d\n", semctl(semId, EMPTY        , GETVAL));
+    printf ("INITIALIZATOR  = %d\n", semctl(semId, INITIALIZATOR  , GETVAL));
+    printf ("NO_STR_FOR_STR = %d\n", semctl(semId, NO_STR_FOR_STR , GETVAL));
+    printf ("NO_FOL_FOR_STR = %d\n", semctl(semId, NO_FOL_FOR_STR , GETVAL));
+    printf ("NO_STR_FOR_FOL = %d\n", semctl(semId, NO_STR_FOR_FOL , GETVAL));
+    printf ("NO_FOL_FOR_FOL = %d\n", semctl(semId, NO_FOL_FOR_FOL , GETVAL));
+    printf ("MUT_EX         = %d\n", semctl(semId, MUT_EX         , GETVAL));
+    printf ("FULL           = %d\n", semctl(semId, FULL           , GETVAL));
+    printf ("EMPTY          = %d\n", semctl(semId, EMPTY          , GETVAL));
     printf ("----------------\n");
 
     fflush (stdout);
