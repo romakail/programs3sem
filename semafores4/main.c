@@ -66,9 +66,7 @@
     sops[2].sem_op  = operation3;               \
     sops[2].sem_flg = flag3;                    \
                                                 \
-    semopRet = semop(semId, sops, 3);           \
-    printf ("semop = %d\n", semopRet);          \
-    if (semopRet == -1)                         \
+    if (semop(semId, sops, 3) == -1)            \
     {                                           \
         printf ("line  = %d\n", __LINE__);      \
         perror ("Error with semop\n");          \
@@ -143,10 +141,9 @@ int main (int argc, char** argv)
     int mode = modeDetection (argv[1]);
     if (mode == -1)
         return -1;
-    //printf ("mode = %d\n", mode);
 
     int semId = semget (SEMAFORES_KEY, NSEMAFORES, IPC_CREAT | 0666);
-    PRINT ("semId = %d\n", semId)
+    //PRINT ("semId = %d\n", semId)
     if (semId == -1)
     {
         perror ("error with semget\n");
@@ -154,7 +151,7 @@ int main (int argc, char** argv)
     }
 
     int shmId = shmget (SHARED_MEMORY_KEY, sizeof(struct package), IPC_CREAT | 0666);
-    PRINT ("shmId = %d\n", shmId)
+    //PRINT ("shmId = %d\n", shmId)
     if (shmId == -1)
     {
         perror ("error with shmget\n");
@@ -162,7 +159,7 @@ int main (int argc, char** argv)
     }
 
     void* shMemPtr = shmat (shmId, NULL, 0);
-    PRINT ("shMemPtr = %p\n", shMemPtr)
+    //PRINT ("shMemPtr = %p\n", shMemPtr)
     if (shMemPtr == (void*)-1)
     {
         perror ("error with shmat\n");
@@ -216,43 +213,22 @@ int streamer (void* shMemPtr, int semId, char* fileFromName)
     int readRetValue = 0;
 
     int initRet = initializeSemafores(semId);
-    printf ("semaphores initialized ret = %d\n", initRet);
+    //printf ("semaphores initialized ret = %d\n", initRet);
 
     struct sembuf sops [4];
     int semopRet = 0;
 
-    PRINT ("1-in\n")
-    dumpSemafores(semId);
     sem_do3 (NO_STR_FOR_STR, 0, 0,                  // checking if prev streamer and follower are out
              NO_FOL_FOR_STR, 0, 0,
              NO_STR_FOR_STR, 1, SEM_UNDO)           // close yourself. Only one streamer can exist
 
-    PRINT ("2-in\n")
-    dumpSemafores(semId);
     sem_do3 (NO_FOL_FOR_FOL, -1, 0,                 // checking if a NEW follower triggered first sem_do3
              NO_FOL_FOR_FOL,  1, 0,
              NO_STR_FOR_FOL,  1, SEM_UNDO)
 
-    PRINT ("3-in\n")
-    dumpSemafores(semId);
-
-    int counter = 0;
-
     do
     {
         //produce_item();
-
-        PRINT ("inside-1\n")
-        // dumpSemafores (semId);
-        // sleep (3);
-        // dumpSemafores (semId);
-        // sem_do  (EMPTY        , -1, 0)
-
-
-        PRINT ("inside-2\n")
-        dumpSemafores (semId);
-        // sem_do  (MUT_EX        , -1, 0)
-
         sem_do3 (NO_FOL_FOR_STR,  1, IPC_NOWAIT,
                  NO_FOL_FOR_STR, -1, IPC_NOWAIT,
                  MUT_EX        , -1, SEM_UNDO)
@@ -268,38 +244,18 @@ int streamer (void* shMemPtr, int semId, char* fileFromName)
             return -1;
         }
         packagePtr->size = readRetValue;
-        PRINT ("thrown, size = %d\n", packagePtr->size);
 
-        //sleep(1);
         //-----------------------------end of a critical section---------------------------------
 
-        sem_do (MUT_EX,  1, SEM_UNDO)
-        sem_do (FULL  ,  1, SEM_UNDO)
+        sem_do  (MUT_EX,  1, SEM_UNDO)
+
+        sem_do  (FULL  ,  1, SEM_UNDO)
 
         sem_do3 (NO_FOL_FOR_STR, -1, IPC_NOWAIT,    // the order is dramatically important =(
                  NO_FOL_FOR_STR,  1, IPC_NOWAIT,
                  EMPTY         , -1, 0)
 
-        counter++;
     }while (readRetValue != 0);
-
-
-    PRINT ("nSemChanges = %d\n", counter)
-
-    /*
-    PRINT("1-out\n")
-    sem_do(NO_STR_FOR_FOL, -1, 0)
-    PRINT("2-out\n")
-    sem_do(NO_STR_FOR_STR, -1, 0)
-    PRINT("3-out\n")
-    */
-
-    PRINT ("1-out\n")
-    dumpSemafores(semId);
-    // sem_do2 (NO_STR_FOR_FOL, -1, 0,
-    //          NO_STR_for_STR, -1, SEM_UNDO)
-    // PRINT ("2-out\n")
-    // dumpSemafores(semId);
 
     return 0;
 }
@@ -312,44 +268,24 @@ int follower (void* shMemPtr, int semId)
     int writeRetValue = 0;
 
     int initRet = initializeSemafores(semId);
-    printf ("semaphores initialized ret = %d\n", initRet);
+    //printf ("semaphores initialized ret = %d\n", initRet);
 
     struct sembuf sops [4];
-    int semopRet = 0;
 
-    /*
-    PRINT ("1-in\n")
-    sem_do2 (NO_FOL_FOR_FOL, 0, 0, NO_FOL_FOR_FOL, 1, 0)
-    PRINT ("2-in\n")
-    sem_do2 (NO_STR_FOR_FOL, 0, 0, NO_STR_FOR_FOL, 1, 0)
-    PRINT ("3-in\n")
-	*/
-
-    PRINT ("1-in\n")
-	dumpSemafores(semId);
     sem_do3 (NO_FOL_FOR_FOL, 0, 0,
              NO_STR_FOR_FOL, 0, 0,
              NO_FOL_FOR_FOL, 1, SEM_UNDO)
 
-    PRINT ("2-in\n")
-    dumpSemafores(semId);
     sem_do3 (NO_STR_FOR_STR, -1, 0,
              NO_STR_FOR_STR,  1, 0,
              NO_FOL_FOR_STR,  1, SEM_UNDO)
 
-     PRINT ("3-in\n")
-     dumpSemafores(semId);
-
-    int counter = 0;
-
     do
     {
-        // sem_do  (FULL          , -1, 0)s
         sem_do3(NO_STR_FOR_FOL, -1, IPC_NOWAIT,             // the order is dramatically important
                 NO_STR_FOR_FOL,  1, IPC_NOWAIT,
                 FULL          , -1, 0)
 
-        // sem_do  (MUT_EX        , -1, 0)
         sem_do3(NO_STR_FOR_FOL, -1, IPC_NOWAIT,
                 NO_STR_FOR_FOL,  1, IPC_NOWAIT,
                 MUT_EX        , -1, SEM_UNDO)
@@ -366,35 +302,14 @@ int follower (void* shMemPtr, int semId)
             return -1;
         }
 
-
-        usleep (20000);
+        //usleep (20000);
 
         //-----------------------End of a critical section-------------------------------
         sem_do (MUT_EX,  1, SEM_UNDO)
         sem_do (EMPTY ,  1, SEM_UNDO)
         //consume_item()
 
-        counter++;
-
-
     }while (packagePtr->size != 0);
-
-    PRINT ("nSemChanges = %d\n", counter)
-
-    /*
-    PRINT("1-out\n")
-    sem_do(NO_FOL_FOR_FOL, -1, 0)
-    PRINT("2-out\n")
-    sem_do(NO_FOL_FOR_STR, -1, 0)
-    PRINT("3-out\n")
-    */
-
-    PRINT("1-out\n")
-    dumpSemafores(semId);
-    // sem_do2 (NO_FOL_FOR_FOL, -1, SEM_UNDO,
-    //          NO_FOL_FOR_STR, -1, 0)
-    // PRINT("2-out\n")
-    // dumpSemafores(semId);
 
     return 0;
 }
