@@ -102,7 +102,7 @@
 enum semafore_names
 {
     INITIALIZATOR,
-    NO_STR_FOR_STR,
+    NO_STR_FOR_STR,       // sort of mutex for streamers
     NO_FOL_FOR_STR,
     NO_STR_FOR_FOL,
     NO_FOL_FOR_FOL,
@@ -225,38 +225,6 @@ int streamer (void* shMemPtr, int semId, char* fileFromName)
     sem_do3 (NO_FOL_FOR_FOL, -1, 0,                 // checking if a NEW follower triggered first sem_do3
              NO_FOL_FOR_FOL,  1, 0,
              NO_STR_FOR_FOL,  1, SEM_UNDO)
-
-    do
-    {
-        //produce_item();
-        sem_do3 (NO_FOL_FOR_STR,  1, IPC_NOWAIT,
-                 NO_FOL_FOR_STR, -1, IPC_NOWAIT,
-                 MUT_EX        , -1, SEM_UNDO)
-
-        //put_item();
-        //-----------------------------start of a critical section----------------------------
-        //--------------streamer and follower, compete for an access to shmem---------------
-
-        readRetValue = read (fdFrom, packagePtr->buffer, SIZE_OF_SHARED_BUFFER);
-        if (readRetValue == -1)
-        {
-            perror ("problems with read\n");
-            return -1;
-        }
-        packagePtr->size = readRetValue;
-
-        //-----------------------------end of a critical section---------------------------------
-
-        sem_do  (MUT_EX,  1, SEM_UNDO)
-
-        sem_do  (FULL  ,  1, SEM_UNDO)
-
-        sem_do3 (NO_FOL_FOR_STR, -1, IPC_NOWAIT,    // the order is dramatically important =(
-                 NO_FOL_FOR_STR,  1, IPC_NOWAIT,
-                 EMPTY         , -1, 0)
-
-    }while (readRetValue != 0);
-
     return 0;
 }
 
@@ -280,6 +248,10 @@ int follower (void* shMemPtr, int semId)
              NO_STR_FOR_STR,  1, 0,
              NO_FOL_FOR_STR,  1, SEM_UNDO)
 
+    sem_do2 (EMPTY,  2, SEM_UNDO,               // to reset the EMPTY
+             EMPTY, -2, 0)
+
+
     do
     {
         sem_do3(NO_STR_FOR_FOL, -1, IPC_NOWAIT,             // the order is dramatically important
@@ -302,11 +274,11 @@ int follower (void* shMemPtr, int semId)
             return -1;
         }
 
-        //usleep (20000);
+        // usleep (20000);
 
         //-----------------------End of a critical section-------------------------------
         sem_do (MUT_EX,  1, SEM_UNDO)
-        sem_do (EMPTY ,  1, SEM_UNDO)
+        sem_do (EMPTY ,  1, 0)
         //consume_item()
 
     }while (packagePtr->size != 0);
@@ -332,13 +304,13 @@ int initializeSemafores (int semId)
     sops[2].sem_op  = 0;
     sops[2].sem_flg = 0;
 
-    int semopRetVal = semop (semId, sops, 3);    //If you add a new initialization of a semafore don't forget to change nsops
+    sops[3].sem_num = INITIALIZATOR;
+    sops[3].sem_op  = 1;
+    sops[3].sem_flg = 0;
 
-    sops[0].sem_num = INITIALIZATOR;
-    sops[0].sem_op  = 1;
-    sops[0].sem_flg = 0;
+    int semopRetVal = semop (semId, sops, 4);    //If you add a new initialization of a semafore don't forget to change nsops
 
-    semop (semId, sops, 1);
+    // semop (semId, sops, 1);
 
     return semopRetVal;
 }

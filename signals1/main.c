@@ -16,7 +16,13 @@
 
 #define BUFFER_LENGHT 128
 
+#define PRINT(args...)      \
+    printf(args);           \
+    fflush (stdout);        \
+
+
 int bit = 0;
+int ready = 0;
 
 int  producer (pid_t consPid, const int fdFrom);
 int  consumer (pid_t prodPid);
@@ -39,7 +45,7 @@ int main (int argc, char** argv)
 {
     if (argc != 2)
     {
-        printf ("wrong number of arguments\n");
+        PRINT ("wrong number of arguments\n");
 		return -1;
     }
 
@@ -94,7 +100,8 @@ int consumer (pid_t  prodPid)
     while(1)
     {
         letter = receiveByte (prodPid);
-        printf ("%c", letter);
+        printf  ("%c", letter);
+        fflush (stdout);
     }
 
 	return 0;
@@ -150,18 +157,19 @@ int throwByte (int consPid, char byte)
 {
     sigset_t emptyMask;
     sigemptyset (&emptyMask);
-    printf ("---------------------------BYTE = %c\n", byte);
+    // PRINT ("---------------------------BYTE = %c\n", byte);
 
     for (int i = 0; i < 8; i++)
     {
-        if (((1 << i) & byte) == 0)
+        if (((1 << (7-i)) & byte) == 0)
         {
-            printf ("bit = 0\n");
+            // PRINT ("bit = 0\n");
             kill (consPid, SIGUSR1);
         }
         else
         {
-            printf ("bit = 1\n");
+            // PRINT ("bit = 1\n");
+            // int a - UINT_MAX;
             kill (consPid, SIGUSR2);
         }
         sigsuspend (&emptyMask);
@@ -173,7 +181,7 @@ int throwByte (int consPid, char byte)
 //------------------------------------------------------------------------------
 
 char receiveByte (int prodPid)
-
+{
     sigset_t emptyMask;
     sigemptyset (&emptyMask);
 
@@ -186,7 +194,7 @@ char receiveByte (int prodPid)
         kill (prodPid, SIGUSR2);
     }
 
-    printf ("poluchilos %c\n ", byte);
+    PRINT ("%c ", byte);
 	return byte;
 }
 
@@ -194,7 +202,7 @@ char receiveByte (int prodPid)
 
 void usr1HandlerCons (int signal)
 {
-    printf ("thrown 0\n");
+    // PRINT ("thrown 0\n");
 	bit = 0;
 }
 
@@ -202,7 +210,7 @@ void usr1HandlerCons (int signal)
 
 void usr2HandlerCons (int signal)
 {
-    printf ("thrown 1\n");
+    // PRINT ("thrown 1\n");
     bit = 1;
 }
 
@@ -210,7 +218,9 @@ void usr2HandlerCons (int signal)
 
 void emptyHandler (int signal)
 {
-    printf ("I am empty\n");
+    // PRINT ("I am empty\n");
+    ready = 1;
+    // usleep (s);
 }
 
 //

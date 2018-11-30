@@ -1,0 +1,14 @@
+throwing:
+	while(1):
+		extract bit
+		kill BIT
+		wait READY		
+
+
+receiving:
+	while(1):
+		wait BIT
+		extract bit from a signal
+		kill READY
+		
+		
