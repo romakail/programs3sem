@@ -9,7 +9,6 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
 #include <signal.h>
@@ -20,23 +19,26 @@
     printf(args);           \
     fflush (stdout);        \
 
-
 int bit = 0;
-int ready = 0;
+int childContinue = 0;
+pid_t parentPid = 0;
 
 int  producer (pid_t consPid, const int fdFrom);
 int  consumer (pid_t prodPid);
 
 int  prodHandlersInit ();
 int  consHandlersInit ();
+int  blockUsrSignals  ();
 
 char receiveByte (int prodPid);
 int  throwByte   (int consPid, char byte);
 
-void usr1HandlerCons (int signal);
-void usr2HandlerCons (int signal);
-void emptyHandler    (int signal);
-
+void usr1HandlerCons      (int signal);
+void usr2HandlerCons      (int signal);
+void emptyHandler         (int signal);
+void alarmHandlerProd     (int signal);
+void childHandlerCons     (int signal);
+void childContinueHandler (int signal);
 //int  sigSetInit (sigset_t* setPtr);
 
 //------------------------------------------------------------------------------
@@ -56,6 +58,8 @@ int main (int argc, char** argv)
         exit (0);
     }
 
+    parentPid = getpid();
+    blockUsrSignals ();
 	pid_t pid = fork ();
 	if (pid == 0)				// child
 	{
@@ -74,6 +78,8 @@ int main (int argc, char** argv)
 
 int producer (pid_t consPid, const int fdFrom)
 {
+    PRINT ("producer (child) pid = %d\n", getpid())
+    // blockUsrSignals ();
     prodHandlersInit ();
 	char buffer [BUFFER_LENGHT] = {};
 	int readRet = 1;
@@ -81,11 +87,13 @@ int producer (pid_t consPid, const int fdFrom)
 	while (readRet > 0)
 	{
 		readRet = read(fdFrom, &buffer, BUFFER_LENGHT);
-        for (int i = 0; i < 128; i++)
+        for (int i = 0; i < readRet; i++)
         {
             throwByte (consPid, buffer[i]);
         }
 	}
+    throwByte (consPid, -1);
+    // PRINT ("--------------------------------------------------- producer finished\n")
 	return 0;
 }
 
@@ -93,17 +101,33 @@ int producer (pid_t consPid, const int fdFrom)
 
 int consumer (pid_t  prodPid)
 {
+    PRINT ("consumer (parent) pid = %d\n", getpid())
+    // blockUsrSignals  ();
     consHandlersInit ();
 
     char letter = 0;
 
-    while(1)
+
+    // while(letter != -1)
+    // {
+    //     letter = receiveByte (prodPid);
+    //     printf  ("%c", letter);
+    //     fflush (stdout);
+    // }
+
+
+    letter = receiveByte (prodPid);
+    if (letter != -1)
     {
-        letter = receiveByte (prodPid);
-        printf  ("%c", letter);
-        fflush (stdout);
+        do
+        {
+            printf ("%c", letter);
+            fflush (stdout);
+            letter = receiveByte (prodPid);
+        } while (letter != -1);
     }
 
+    // PRINT ("-------------------------------------------------------- consumer finished\n")
 	return 0;
 }
 
@@ -127,6 +151,24 @@ int consHandlersInit ()
         perror ("Error with sigaction\n");
         exit (0);
     }
+
+    action.sa_handler = childHandlerCons;
+        sigActRet = sigaction (SIGCHLD, &action, 0);
+    if (sigActRet == -1)
+    {
+        perror ("Error with sigaction\n");
+        exit (0);
+    }
+
+    // action.sa_handler = alarmHandler;
+    // sigActRet = sigaction (SIGALRM, &action, 0);
+    // if (sigActRet == -1)
+    // {
+    //     perror ("Error with sigaction\n");
+    //     exit (0);
+    // }
+
+    return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -134,7 +176,7 @@ int consHandlersInit ()
 int prodHandlersInit ()
 {
     struct sigaction action = {};
-    action.sa_handler = emptyHandler;
+    action.sa_handler = childContinueHandler;
     int sigActRet = sigaction (SIGUSR1, &action, 0);
     if (sigActRet == -1)
     {
@@ -149,12 +191,55 @@ int prodHandlersInit ()
         exit (0);
     }
 
+    action.sa_handler = alarmHandlerProd;
+    sigActRet = sigaction (SIGALRM, &action, 0);
+    if (sigActRet == -1)
+    {
+        perror ("Error with sigaction\n");
+        exit (0);
+    }
+
+    return 0;
+}
+
+//------------------------------------------------------------------------------
+
+int blockUsrSignals ()
+{
+    sigset_t mask;
+    int ret = 0;
+    ret = sigemptyset (&mask);
+    if (ret == -1)
+    {
+        perror ("Error with sigemptyset\n");
+        exit (0);
+    }
+    ret = sigaddset   (&mask, SIGUSR1);
+    if (ret == -1)
+    {
+        perror ("Error with sigaddset\n");
+        exit (0);
+    }
+    ret = sigaddset   (&mask, SIGUSR2);
+    if (ret == -1)
+    {
+        perror ("Error with sigaddset\n");
+        exit (0);
+    }
+    ret = sigprocmask (SIG_SETMASK, &mask, 0);
+    if (ret == -1)
+    {
+        perror ("Error with sigprocmask\n");
+        exit (0);
+    }
+    return 0;
 }
 
 //------------------------------------------------------------------------------
 
 int throwByte (int consPid, char byte)
 {
+    // alarm (2);
     sigset_t emptyMask;
     sigemptyset (&emptyMask);
     // PRINT ("---------------------------BYTE = %c\n", byte);
@@ -169,10 +254,16 @@ int throwByte (int consPid, char byte)
         else
         {
             // PRINT ("bit = 1\n");
-            // int a - UINT_MAX;
             kill (consPid, SIGUSR2);
         }
-        sigsuspend (&emptyMask);
+
+        childContinue = 1;
+        while (childContinue)
+        {
+            alarm (2);
+            sigsuspend (&emptyMask);
+            alarm (0);
+        }
     }
 
 	return 0;
@@ -182,6 +273,7 @@ int throwByte (int consPid, char byte)
 
 char receiveByte (int prodPid)
 {
+    // alarm (2);
     sigset_t emptyMask;
     sigemptyset (&emptyMask);
 
@@ -194,7 +286,7 @@ char receiveByte (int prodPid)
         kill (prodPid, SIGUSR2);
     }
 
-    PRINT ("%c ", byte);
+    // PRINT ("%c ", byte);
 	return byte;
 }
 
@@ -219,8 +311,38 @@ void usr2HandlerCons (int signal)
 void emptyHandler (int signal)
 {
     // PRINT ("I am empty\n");
-    ready = 1;
-    // usleep (s);
+    // ready = 1;
+    usleep (300);
+    // sleep (3);
+}
+
+//------------------------------------------------------------------------------
+
+void alarmHandlerProd (int signal)
+{
+    printf ("Alarm consumer triggered\n");
+    printf ("dead's pid = %d\n", getppid());
+    if (getppid() != parentPid)
+    {
+        printf ("My dad is dead=(\n");
+        exit (0);
+    }
+}
+
+//------------------------------------------------------------------------------
+
+void childHandlerCons (int signal)
+{
+    printf ("Child(producer) died\n");
+    exit (0);
+}
+
+//------------------------------------------------------------------------------
+
+void childContinueHandler (int signal)
+{
+    usleep (3000);
+    childContinue = 0;
 }
 
 //
@@ -248,6 +370,4 @@ void emptyHandler (int signal)
 //     }
 //
 //     return 0;
-// }
 //
-//------------------------------------------------------------------------------
