@@ -1,4 +1,4 @@
-#include <errno.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,21 +11,23 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <errno.h>
 
 
 long int extractNum (const char* stringNum);
 
+int isSameFile (int fd1, int fd2);
 
 int main (int argc, char** argv)
 {
-	if (argc != 3)
+	if (argc != 2)
     {
         printf ("wrong number of arguments\n");
 		return -1;
     }
 
-	int fd1 = extractNum(argv[1]);
-	int fd2 = extractNum(argv[2]);
+	int fd1 = open(argv[1], O_RDONLY);
+	int fd2 = open(argv[1], O_RDONLY);
 
 	if (isSameFile (fd1, fd2))
 	{

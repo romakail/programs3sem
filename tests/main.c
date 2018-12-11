@@ -1,4 +1,4 @@
-#include <errno.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,32 +11,17 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <errno.h>
 
 
 long int extractNum (const char* stringNum);
 
+int isSameFile (int fd1, int fd2);
 
 int main (int argc, char** argv)
 {
-	if (argc != 3)
-    {
-        printf ("wrong number of arguments\n");
-		return -1;
-    }
-
-	int fd1 = extractNum(argv[1]);
-	int fd2 = extractNum(argv[2]);
-
-	if (isSameFile (fd1, fd2))
-	{
-		printf ("One file\n");
-		return 1;
-	}
-	else
-	{
-		printf ("Different files\n");
-		return 0;
-	}
+	char* a = 0;
+	printf ("%c", *a);
 }
 
 int isSameFile (int fd1, int fd2)
@@ -143,19 +128,19 @@ long int extractNum (const char* stringNum)
 //         exit (0);
 //     }
 
-    // int sigaddsetRet = sigaddset (setPtr, SIGUSR1);
-    // if (sigaddsetRet == -1)
-    // {
-    //     perror ("Error with sigaddset\n");
-    //     exit (0);
-    // }
-	//
-    //     sigaddsetRet = sigaddset (setPtr, SIGUSR2);
-    // if (sigaddsetRet == -1)
-    // {
-    //     perror ("Error with sigaddset\n");
-    //     exit (0);
-    // }
+// int sigaddsetRet = sigaddset (setPtr, SIGUSR1);
+// if (sigaddsetRet == -1)
+// {
+//     perror ("Error with sigaddset\n");
+//     exit (0);
+// }
+//
+//     sigaddsetRet = sigaddset (setPtr, SIGUSR2);
+// if (sigaddsetRet == -1)
+// {
+//     perror ("Error with sigaddset\n");
+//     exit (0);
+// }
 //
 //     return 0;
 // }

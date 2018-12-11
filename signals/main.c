@@ -60,8 +60,9 @@ int main (int argc, char** argv)
 
     parentPid = getpid();
     blockUsrSignals ();
+
 	pid_t pid = fork ();
-	if (pid == 0)				// child
+    if (pid == 0)				// child
 	{
 		producer (getppid(), fdFrom);
 	}
@@ -107,15 +108,6 @@ int consumer (pid_t  prodPid)
 
     char letter = 0;
 
-
-    // while(letter != -1)
-    // {
-    //     letter = receiveByte (prodPid);
-    //     printf  ("%c", letter);
-    //     fflush (stdout);
-    // }
-
-
     letter = receiveByte (prodPid);
     if (letter != -1)
     {
@@ -127,8 +119,8 @@ int consumer (pid_t  prodPid)
         } while (letter != -1);
     }
 
-    // PRINT ("-------------------------------------------------------- consumer finished\n")
-	return 0;
+
+    return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -246,6 +238,7 @@ int throwByte (int consPid, char byte)
 
     for (int i = 0; i < 8; i++)
     {
+//--------------------------------critical 1 start
         if (((1 << (7-i)) & byte) == 0)
         {
             // PRINT ("bit = 0\n");
@@ -261,7 +254,8 @@ int throwByte (int consPid, char byte)
         while (childContinue)
         {
             alarm (2);
-            sigsuspend (&emptyMask);
+            sigsuspend (&emptyMask);        // <----- critical 2: SIGALARM and SIGUSR fight 
+//------------------------------critical 1 finish
             alarm (0);
         }
     }
@@ -281,9 +275,11 @@ char receiveByte (int prodPid)
 
     for (int i = 0; i < 8; i++)
     {
+//----------------------------------critical 1 start
         sigsuspend (&emptyMask);
         byte = (byte << 1) | bit;
         kill (prodPid, SIGUSR2);
+//----------------------------------crititcal 1 finish
     }
 
     // PRINT ("%c ", byte);
@@ -341,9 +337,14 @@ void childHandlerCons (int signal)
 
 void childContinueHandler (int signal)
 {
-    usleep (3000);
+    // usleep (3000);
     childContinue = 0;
 }
+
+
+
+
+
 
 //
 // int sigSetInit (sigset_t* setPtr)

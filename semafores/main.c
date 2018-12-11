@@ -53,14 +53,59 @@
         return -1;                              \
     }
 
+#define sem_do3(semaphore1, operation1, flag1, semaphore2, operation2, flag2, semaphore3, operation3, flag3)   \
+    sops[0].sem_num = semaphore1;               \
+    sops[0].sem_op  = operation1;               \
+    sops[0].sem_flg = flag1;                    \
+                                                \
+    sops[1].sem_num = semaphore2;               \
+    sops[1].sem_op  = operation2;               \
+    sops[1].sem_flg = flag2;                    \
+                                                \
+    sops[2].sem_num = semaphore3;               \
+    sops[2].sem_op  = operation3;               \
+    sops[2].sem_flg = flag3;                    \
+                                                \
+    if (semop(semId, sops, 3) == -1)            \
+    {                                           \
+        printf ("line  = %d\n", __LINE__);      \
+        perror ("Error with semop\n");          \
+        return -1;                              \
+    }
+
+
+#define sem_do4(semaphore1, operation1, flag1, semaphore2, operation2, flag2, semaphore3, operation3, flag3, semaphore4, operation4, flag4)     \
+    sops[0].sem_num = semaphore1;               \
+    sops[0].sem_op  = operation1;               \
+    sops[0].sem_flg = flag1;                    \
+                                                \
+    sops[1].sem_num = semaphore2;               \
+    sops[1].sem_op  = operation2;               \
+    sops[1].sem_flg = flag2;                    \
+                                                \
+    sops[2].sem_num = semaphore3;               \
+    sops[2].sem_op  = operation3;               \
+    sops[2].sem_flg = flag3;                    \
+                                                \
+    sops[3].sem_num = semaphore4;               \
+    sops[3].sem_op  = operation4;               \
+    sops[3].sem_flg = flag4;                    \
+                                                \
+    if (semop(semId, sops, 4) == -1)            \
+    {                                           \
+        printf ("line  = %d\n", __LINE__);      \
+        perror ("Error with semop\n");          \
+        return -1;                              \
+    }
+
 
 enum semafore_names
 {
     INITIALIZATOR,
-    NO_STR_STR,
-    NO_FOL_STR,
-    NO_STR_FOL,
-    NO_FOL_FOL,
+    NO_STR_FOR_STR,       // sort of mutex for streamers
+    NO_FOL_FOR_STR,
+    NO_STR_FOR_FOL,
+    NO_FOL_FOR_FOL,
     MUT_EX,
     FULL,
     EMPTY,
@@ -76,6 +121,7 @@ struct package
 
 int modeDetection (char* mode);
 int initializeSemafores (int semId);
+int dumpSemafores (int semId);
 int follower (void* shMemPtr, int semId);
 int streamer (void* shMemPtr, int semId, char* fileFromName);
 
@@ -95,11 +141,9 @@ int main (int argc, char** argv)
     int mode = modeDetection (argv[1]);
     if (mode == -1)
         return -1;
-    //printf ("mode = %d\n", mode);
-
 
     int semId = semget (SEMAFORES_KEY, NSEMAFORES, IPC_CREAT | 0666);
-    PRINT ("semId = %d\n", semId)
+    //PRINT ("semId = %d\n", semId)
     if (semId == -1)
     {
         perror ("error with semget\n");
@@ -107,7 +151,7 @@ int main (int argc, char** argv)
     }
 
     int shmId = shmget (SHARED_MEMORY_KEY, sizeof(struct package), IPC_CREAT | 0666);
-    PRINT ("shmId = %d\n", shmId)
+    //PRINT ("shmId = %d\n", shmId)
     if (shmId == -1)
     {
         perror ("error with shmget\n");
@@ -115,7 +159,7 @@ int main (int argc, char** argv)
     }
 
     void* shMemPtr = shmat (shmId, NULL, 0);
-    PRINT ("shMemPtr = %p\n", shMemPtr)
+    //PRINT ("shMemPtr = %p\n", shMemPtr)
     if (shMemPtr == (void*)-1)
     {
         perror ("error with shmat\n");
@@ -169,81 +213,59 @@ int streamer (void* shMemPtr, int semId, char* fileFromName)
     int readRetValue = 0;
 
     int initRet = initializeSemafores(semId);
-    printf ("semaphores initialized ret = %d\n", initRet);
+    //printf ("semaphores initialized ret = %d\n", initRet);
 
-    struct sembuf sops [2];
+    struct sembuf sops [4];
+    int semopRet = 0;
 
-    PRINT ("1-in\n")
-    sem_do2 (NO_FOL_STR, 0, 0, NO_FOL_STR, 1, SEM_UNDO)
-    PRINT ("2-in\n")
-    sem_do2 (NO_STR_STR, 0, 0, NO_STR_STR, 1, SEM_UNDO)
-    PRINT ("3-in\n")
+    sem_do3 (NO_STR_FOR_STR, 0, 0,                  // checking if prev streamer and follower are out
+             NO_FOL_FOR_STR, 0, 0,
+             NO_STR_FOR_STR, 1, SEM_UNDO)           // close yourself. Only one streamer can exist
 
-    int counter = 0;
-
-    do
-    {
-        //produce_item();
-
-        sem_do (EMPTY,  -1, 0)
-        sem_do (MUT_EX, -1, 0)
-        //put_item();
-        //-----------------------------start of a critical section----------------------------
-        readRetValue = read (fdFrom, packagePtr->buffer, SIZE_OF_SHARED_BUFFER);
-        if (readRetValue == -1)
-        {
-            perror ("problems with read\n");
-            return -1;
-        }
-        packagePtr->size = readRetValue;
-        PRINT ("thrown, size = %d\n", packagePtr->size);
-        //sleep(1);
-        //-----------------------------end of a critical section---------------------------------
-
-        sem_do (MUT_EX,  1, 0)
-        sem_do (FULL  ,  1, 0)
-
-        counter++;
-    }while (readRetValue != 0);
-
-
-    PRINT ("nSemChanges = %d\n", counter)
-
-    PRINT("1-out\n")
-    sem_do(NO_STR_FOL, -1, SEM_UNDO)
-    PRINT("2-out\n")
-    sem_do(NO_STR_STR, -1, SEM_UNDO)
-    PRINT("3-out\n")
-
+    sem_do3 (NO_FOL_FOR_FOL, -1, 0,                 // checking if a NEW follower triggered first sem_do3
+             NO_FOL_FOR_FOL,  1, 0,
+             NO_STR_FOR_FOL,  1, SEM_UNDO)
     return 0;
 }
 
 //-----------------------------------------------------------------------------------------
-//                       mode = 1
+//                      mode = 1
 int follower (void* shMemPtr, int semId)
 {
     struct package* packagePtr = (struct packagePtr*) shMemPtr;
     int writeRetValue = 0;
 
     int initRet = initializeSemafores(semId);
-    printf ("semaphores initialized ret = %d\n", initRet);
+    //printf ("semaphores initialized ret = %d\n", initRet);
 
-    struct sembuf sops [2];
+    struct sembuf sops [4];
 
-    PRINT ("1-in\n")
-    sem_do2 (NO_FOL_FOL, 0, 0, NO_FOL_FOL, 1, SEM_UNDO)
-    PRINT ("2-in\n")
-    sem_do2 (NO_STR_FOL, 0, 0, NO_STR_FOL, 1, SEM_UNDO)
-    PRINT ("3-in\n")
+    sem_do3 (NO_FOL_FOR_FOL, 0, 0,
+             NO_STR_FOR_FOL, 0, 0,
+             NO_FOL_FOR_FOL, 1, SEM_UNDO)
 
-    int counter = 0;
+    sem_do3 (NO_STR_FOR_STR, -1, 0,
+             NO_STR_FOR_STR,  1, 0,
+             NO_FOL_FOR_STR,  1, SEM_UNDO)
+
+    sem_do2 (EMPTY,  2, SEM_UNDO,               // to reset the EMPTY
+             EMPTY, -2, 0)
+
 
     do
     {
-        sem_do (FULL  , -1, 0)
-        sem_do (MUT_EX, -1, 0)
+        sem_do3(NO_STR_FOR_FOL, -1, IPC_NOWAIT,             // the order is dramatically important
+                NO_STR_FOR_FOL,  1, IPC_NOWAIT,
+                FULL          , -1, 0)
+
+        sem_do3(NO_STR_FOR_FOL, -1, IPC_NOWAIT,
+                NO_STR_FOR_FOL,  1, IPC_NOWAIT,
+                MUT_EX        , -1, SEM_UNDO)
+
         //get_item ()
         //-----------------------Start of a critical section-----------------------------
+        //----------------streamer and follower, compete for an access to shmem---------------
+
 
         writeRetValue = write (STDOUT_FILENO, packagePtr->buffer, packagePtr->size);
         if (writeRetValue == -1)
@@ -252,23 +274,14 @@ int follower (void* shMemPtr, int semId)
             return -1;
         }
 
-        //sleep (1);
+        // usleep (20000);
+
         //-----------------------End of a critical section-------------------------------
-        sem_do (MUT_EX,  1, 0)
+        sem_do (MUT_EX,  1, SEM_UNDO)
         sem_do (EMPTY ,  1, 0)
         //consume_item()
 
-        counter++;
-
     }while (packagePtr->size != 0);
-
-    PRINT ("nSemChanges = %d\n", counter)
-
-    PRINT("1-out\n")
-    sem_do(NO_FOL_FOL, -1, SEM_UNDO)
-    PRINT("2-out\n")
-    sem_do(NO_FOL_STR, -1, SEM_UNDO)
-    PRINT("3-out\n")
 
     return 0;
 }
@@ -288,18 +301,38 @@ int initializeSemafores (int semId)
     sops[1].sem_flg = 0;
 
     sops[2].sem_num = EMPTY;
-    sops[2].sem_op  = 1;
+    sops[2].sem_op  = 0;
     sops[2].sem_flg = 0;
 
-    int semopRetVal = semop (semId, sops, 3);    //If you add a new initialization of a semafore don't forget to change nsops
+    sops[3].sem_num = INITIALIZATOR;
+    sops[3].sem_op  = 1;
+    sops[3].sem_flg = 0;
 
-    sops[0].sem_num = INITIALIZATOR;
-    sops[0].sem_op  = 1;
-    sops[0].sem_flg = 0;
+    int semopRetVal = semop (semId, sops, 4);    //If you add a new initialization of a semafore don't forget to change nsops
 
-    semop (semId, sops, 1);
+    // semop (semId, sops, 1);
 
     return semopRetVal;
+}
+
+//--------------------------------------------------------------------------------------------------------
+
+int dumpSemafores (int semId)
+{
+    printf ("------dump------\n");
+    printf ("INITIALIZATOR  = %d\n", semctl(semId, INITIALIZATOR  , GETVAL));
+    printf ("NO_STR_FOR_STR = %d\n", semctl(semId, NO_STR_FOR_STR , GETVAL));
+    printf ("NO_FOL_FOR_STR = %d\n", semctl(semId, NO_FOL_FOR_STR , GETVAL));
+    printf ("NO_STR_FOR_FOL = %d\n", semctl(semId, NO_STR_FOR_FOL , GETVAL));
+    printf ("NO_FOL_FOR_FOL = %d\n", semctl(semId, NO_FOL_FOR_FOL , GETVAL));
+    printf ("MUT_EX         = %d\n", semctl(semId, MUT_EX         , GETVAL));
+    printf ("FULL           = %d\n", semctl(semId, FULL           , GETVAL));
+    printf ("EMPTY          = %d\n", semctl(semId, EMPTY          , GETVAL));
+    printf ("----------------\n");
+
+    fflush (stdout);
+
+    return 0;
 }
 
 //------------------------------------------------------------------------------------------------------
