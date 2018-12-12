@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 
-#define CHILD_BUFFER_LENGHT 128
+#define CHILD_BUFFER_LENGHT 4096
 #define BLUE  "\x1B[34m"
 #define NORM  "\x1B[0m"
 
@@ -71,7 +71,7 @@ int main (int argc, char** argv)
 {
 	if (argc != 3)
     {
-        PRINT ("wrong number of arguments\n");
+        printf ("wrong number of arguments\n");
 		return -1;
     }
 
@@ -144,7 +144,7 @@ int parent (struct pairInfo* pairs, int nChildren)
 		initFdSets (&readFds, &writeFds, pairs, nChildren);
 
 		selectRet = select(maxFd, &readFds, &writeFds, 0, 0);
-		PRINT (BLUE "SelectRet = %d\n" NORM, selectRet)
+		PRINT ("SelectRet = %d\n", selectRet)
 
 		CHECK (selectRet, "Error with select\n")
 
@@ -167,15 +167,16 @@ int parent (struct pairInfo* pairs, int nChildren)
 				CHECK (readRet, "Error with read in parent\n")
 			}
 			//PRINT ("buffer [%s]\n", pairs[i].parentBuffer);
-			PRINT ("LALA\n")
+			// PRINT ("LALA\n")
 			if (FD_ISSET(pairs[i+1].fdFrw[WR], &writeFds))
 			{
 				PRINT ("parent, I am going to write\n")
+				PRINT ("parent, writing into %d, pointer %p, readRet = %d\n", pairs[i+1].fdFrw[WR], pairs[i].parentBuffer, readRet);
 				writeRet = write (pairs[i+1].fdFrw[WR], pairs[i].parentBuffer, readRet);
 				PRINT ("parent , written %d bytes from [%d] child into %d\n", writeRet, i, pairs[i+1].fdFrw[WR]);
 				CHECK (writeRet, "Erroe with write in parent\n")
 			}
-			PRINT ("lalalalalalalalalalaalalalala\n")
+			// PRINT ("lalalalalalalalalalaalalalala\n")
 		}
 	}
 
@@ -189,7 +190,7 @@ int child (struct pairInfo* pairPtr)
 	PRINT ("Child %d, poehali fdFrw[RD] = %d fdBck[WR] = %d\n", pairPtr->childNumber, pairPtr->fdFrw[RD], pairPtr->fdBck[WR])
 
 	char buffer [CHILD_BUFFER_LENGHT] = {};
-	printf ("===============bufferPtr = %p\n" , buffer);
+	// printf ("===============bufferPtr = %p\n" , buffer);
 	int readRet  = 1;
 	int writeRet = 0;
 
@@ -308,7 +309,14 @@ struct pairInfo* initPairs (long int nChildren, int fdFrom, int fdTo)
 	for (int i = 0; i < nChildren - 1; i++)
 	{
 		pairs[i].parentBufLen = bufferSize(i, nChildren);
+		PRINT ("calling calloc with %d * %ld\n", pairs[i].parentBufLen, sizeof(char))
 		pairs[i].parentBuffer = (char*) calloc (pairs[i].parentBufLen, sizeof(char));
+		if (pairs[i].parentBuffer == 0)
+		{
+			printf ("i = %d\n", i);
+			perror ("Error with calloc\n");
+			exit (-1);
+		}
 	}
 
 	pairs[nChildren - 1].parentBufLen = -1;
@@ -382,10 +390,10 @@ int pairsDump (struct pairInfo* pairs, int nChildren)
 {
 	for (int i = 0; i < nChildren; i++)
 	{
-		printf ("---childNo %d---\n", pairs[i].childNumber);
-		printf ("Frw[WR] = %d, Frw[RD] = %d, ", pairs[i].fdFrw[WR], pairs[i].fdFrw[RD]);
-		printf ("Bck[WR] = %d, Bck[RD] = %d\n", pairs[i].fdBck[WR], pairs[i].fdBck[RD]);
-		printf ("bufferPtr = %p, bufferLen = %d\n", pairs[i].parentBuffer, pairs[i].parentBufLen);
+		PRINT ("---childNo %d---\n", pairs[i].childNumber);
+		PRINT ("Frw[WR] = %d, Frw[RD] = %d, ", pairs[i].fdFrw[WR], pairs[i].fdFrw[RD]);
+		PRINT ("Bck[WR] = %d, Bck[RD] = %d\n", pairs[i].fdBck[WR], pairs[i].fdBck[RD]);
+		PRINT ("bufferPtr = %p, bufferLen = %d\n", pairs[i].parentBuffer, pairs[i].parentBufLen);
 	}
 
 	return 0;
@@ -414,16 +422,19 @@ int maxFdVal (struct pairInfo* pairs, int nChildren)
 
 int bufferSize (int childNumber, int nChildren)
 {
+	// PRINT ("power = %d", power(3, nChildren - childNumber));
 	int a = 1024 * power(3, nChildren - childNumber);
-	return	(a < 131072) ? a : 131072;
+	int retVal = (a < 131072) ? a : 131072;
+	// PRINT ("bufferSize = %d\n", retVal);
+	return	retVal;
 }
 
 //------------------------------------------------------------------------------
 
 int power (int x, int power)
 {
-	int ret = 1;
-	for (int i = 0; i < power; i++)
+	long int ret = 1;
+	for (int i = 0; i < ((power < 9) ? power : 9); i++)
 		ret *= x;
 	return ret;
 }
