@@ -11,11 +11,11 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 
-#define CHILD_BUFFER_LENGHT 4096
+#define CHILD_BUFFER_LENGHT 128
 #define BLUE  "\x1B[34m"
 #define NORM  "\x1B[0m"
 
-#define PRINT(args...) 		    \
+#define PRINT(args...) 	//	    \
 	do 							\
 	{							\
 		printf(args);           \
@@ -50,6 +50,7 @@ struct pairInfo
 	// char* childBuffer;
 	int allowRead;
 	int nWrittenBytes;
+	int nReadBytes;
 };
 
 long int extractNum (const char* stringNum);
@@ -149,15 +150,24 @@ int parent (struct pairInfo* pairs, int nChildren)
 
 		for (int i = 0; i < nChildren - 1; i++)
 		{
-			if (FD_ISSET(pairs[i].fdBck[RD], &readFds))
+			if (FD_ISSET(pairs[i].fdBck[RD], &readFds) && (pairs[i].allowRead == TRUE))
 			{
+				pairs[i].allowRead = FALSE;
+				pairs[i].nWrittenBytes = 0;
 				readRet = read (pairs[i].fdBck[RD], pairs[i].parentBuffer, pairs[i].parentBufLen);
 				CHECK (readRet, "Error with read in parent\n")
+				pairs[i].nReadBytes = readRet;
 			}
 			if (FD_ISSET(pairs[i+1].fdFrw[WR], &writeFds))
 			{
-				writeRet = write (pairs[i+1].fdFrw[WR], pairs[i].parentBuffer, readRet);
+				writeRet = write (pairs[i+1].fdFrw[WR], pairs[i].parentBuffer + pairs[i].nWrittenBytes, pairs[i].nReadBytes - pairs[i].nWrittenBytes);
 				CHECK (writeRet, "Erroe with write in parent\n")
+				pairs[i].nWrittenBytes += writeRet;
+			}
+
+			if (pairs[i].nReadBytes == pairs[i].nWrittenBytes)
+			{
+				pairs[i].allowRead = TRUE;
 			}
 		}
 	}
@@ -169,7 +179,7 @@ int parent (struct pairInfo* pairs, int nChildren)
 
 int child (struct pairInfo* pairPtr)
 {
-	PRINT ("Child %d, poehali fdFrw[RD] = %d fdBck[WR] = %d\n", pairPtr->childNumber, pairPtr->fdFrw[RD], pairPtr->fdBck[WR])
+	PRINT ("Child %d, poehali fdFrw[RD] = %d fdBck[WR] = %d, myPid = %d\n", pairPtr->childNumber, pairPtr->fdFrw[RD], pairPtr->fdBck[WR], getpid())
 
 	char buffer [CHILD_BUFFER_LENGHT] = {};
 	// printf ("===============bufferPtr = %p\n" , buffer);
