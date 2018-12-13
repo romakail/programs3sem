@@ -78,7 +78,6 @@ int main (int argc, char** argv)
     }
 
     int fdFrom = open (argv[2], O_RDONLY);
-	PRINT ("fdFrom = %d\n", fdFrom);
     CHECK (fdFrom, "can't open the file")
 
 
@@ -109,17 +108,11 @@ int main (int argc, char** argv)
 
 	if (pid == 0)  //child
 	{
-		// PRINT ("my pid = %d\n", getpid());
-		// PRINT ("childPointer [%d] = %p\n", procNumber, &(pairs[procNumber]));
 		childCloseFds (pairs, nChildren, procNumber);
-		// PRINT ("procNumber = %d\n", procNumber)
 		child  (&(pairs[procNumber]));
 	}
 	else
 	{
-		// PRINT ("myPid = %d\n", getpid());
-		// PRINT ("parentPointer = %p\n", pairs);
-		// PRINT ("nChildren = %ld\n", nChildren);
 		parentCloseFds (pairs, nChildren);
 		parent (pairs, nChildren);
 	}
@@ -131,7 +124,6 @@ int main (int argc, char** argv)
 
 int parent (struct pairInfo* pairs, int nChildren)
 {
-	PRINT ("I am a parent and I have an ability to write\n")
 	fd_set  readFds;
 	fd_set writeFds;
 
@@ -179,21 +171,16 @@ int parent (struct pairInfo* pairs, int nChildren)
 
 int child (struct pairInfo* pairPtr)
 {
-	PRINT ("Child %d, poehali fdFrw[RD] = %d fdBck[WR] = %d, myPid = %d\n", pairPtr->childNumber, pairPtr->fdFrw[RD], pairPtr->fdBck[WR], getpid())
-
 	char buffer [CHILD_BUFFER_LENGHT] = {};
-	// printf ("===============bufferPtr = %p\n" , buffer);
 	int readRet  = 1;
 	int writeRet = 0;
 
 	while (readRet != 0)
 	{
 		readRet  = read (pairPtr->fdFrw[RD], buffer, CHILD_BUFFER_LENGHT);
-		PRINT ("                                                        child %d, read    %d bytes from %d\n", pairPtr->childNumber, readRet, pairPtr->fdFrw[RD]);
 		CHECK (readRet , "problem with read\n")
 
 		writeRet = write(pairPtr->fdBck[WR], buffer, readRet);
-		PRINT ("                                                        child %d, written %d bytes into %d\n", pairPtr->childNumber, writeRet, pairPtr->fdBck[WR]);
 		CHECK (writeRet, "problem with write\n")
 	}
 
@@ -204,7 +191,6 @@ int child (struct pairInfo* pairPtr)
 
 int childCloseFds (struct pairInfo* pairs, int nChildren, int childNum)
 {
-	// PRINT ("child %d, started closing fds; pair = %p, nChildren = %d\n", childNum, pairs, nChildren);
 	int closeRet = 0;
 
 	for (int i = 0; i < nChildren; i++)
@@ -215,13 +201,11 @@ int childCloseFds (struct pairInfo* pairs, int nChildren, int childNum)
 			if ((pairs[i].fdFrw[WR] != -1) && (pairs[i].fdFrw[WR] != 1))
 			{
 				closeRet = close (pairs[i].fdFrw[WR]);
-				// PRINT ("Child %d, closing %d, ret = %d\n", childNum, pairs[i].fdFrw[WR], closeRet)
 				CHECK (closeRet, "Error with close\n");
 			}
 			if (pairs[i].fdBck[RD] != -1)
 			{
 				closeRet = close (pairs[i].fdBck[RD]);
-				// PRINT ("Child %d, closing %d, ret = %d\n", childNum, pairs[i].fdBck[RD], closeRet)
 				CHECK (closeRet, "Error with close\n");
 			}
 		}
@@ -230,30 +214,25 @@ int childCloseFds (struct pairInfo* pairs, int nChildren, int childNum)
 			if (pairs[i].fdFrw[WR] != -1)
 			{
 				closeRet = close (pairs[i].fdFrw[WR]);
-				// PRINT ("Child %d, closing %d, ret = %d\n", childNum, pairs[i].fdFrw[WR], closeRet)
 				CHECK (closeRet, "Error with close\n");
 			}
 			if (pairs[i].fdFrw[RD] != -1)
 			{
 				closeRet = close (pairs[i].fdFrw[RD]);
-				// PRINT ("Child %d, closing %d, ret = %d\n", childNum, pairs[i].fdFrw[RD], closeRet)
 				CHECK (closeRet, "Error with close\n");
 			}
 			if ((pairs[i].fdBck[WR] != -1) && (pairs[i].fdBck[WR] != 1))
 			{
 				closeRet = close (pairs[i].fdBck[WR]);
-				// PRINT ("Child %d, closing %d, ret = %d\n", childNum, pairs[i].fdBck[WR], closeRet)
 				CHECK (closeRet, "Error with close\n");
 			}
 			if (pairs[i].fdBck[RD] != -1)
 			{
 				closeRet = close (pairs[i].fdBck[RD]);
-				// PRINT ("Child %d, closing %d, ret = %d\n", childNum, pairs[i].fdBck[RD], closeRet)
 				CHECK (closeRet, "Error with close\n");
 			}
 		}
 	}
-	// PRINT ("Child %d, closed unnecessary descriptors\n", childNum);
 	return 0;
 }
 
@@ -273,7 +252,6 @@ int parentCloseFds (struct pairInfo* pairs, int nChildren)
 				CHECK (closeRet, "Error with close\n");
 			}
 	}
-	PRINT ("Parent, closed unnecessary descriptors\n");
 	return 0;
 }
 
@@ -325,37 +303,23 @@ struct pairInfo* initPairs (long int nChildren, int fdFrom, int fdTo)
 	pairs [0].fdFrw[RD] = fdFrom;
 
 	int ret = pipe (pairs[0].fdBck);
-	PRINT ("pair 0 fdBck[WR] = %d, fdBck[RD] = %d\n", pairs[0].fdBck[WR], pairs[0].fdBck[RD])
 	CHECK (ret, "problem with pipe\n");
 
 	for (int i = 1; i < nChildren - 1; i++)
 	{
 		ret = pipe(pairs[i].fdFrw);
-		PRINT ("pair %d fdFrw[WR] = %d, fdFrw[RD] = %d\n", i, pairs[i].fdFrw[WR], pairs[i].fdFrw[RD])
 		CHECK (ret, "problem with pipe\n")
 		ret = pipe(pairs[i].fdBck);
-		PRINT ("pair %d fdBck[WR] = %d, fdBck[RD] = %d\n", i, pairs[i].fdBck[WR], pairs[i].fdBck[RD])
 		CHECK (ret, "problem with pipe\n")
-
-		// ret = fcntl (pairs[i].fdFrw[RD], SET_FL, O_RDONLY);
-		// CHECK (ret, "problem with fcntl\n")
-		// ret = fcntl (pairs[i].fdBck[WR], SET_FL, O_WRONLY);
-		// CHECK (ret, "problem with fcntl\n")
 
 		ret = fcntl (pairs[i].fdFrw[WR], F_SETFL, O_WRONLY | O_NONBLOCK);
 		CHECK (ret, "problem with fcntl\n")
 		ret = fcntl (pairs[i].fdBck[RD], F_SETFL, O_RDONLY | O_NONBLOCK);
 		CHECK (ret, "problem with fcntl\n")
 
-		// ret = fcntl (pairs[i].fdFrw[RD], F_SETFL, O_RDONLY | O_NONBLOCK);
-		// CHECK (ret, "problem with fcntl\n")
-		// ret = fcntl (pairs[i].fdBck[WR], F_SETFL, O_WRONLY | O_NONBLOCK);
-		// CHECK (ret, "problem with fcntl\n")
-
 	}
 
 	ret = pipe (pairs[nChildren - 1].fdFrw);
-	PRINT ("pair nChildren - 1 fdFrw[WR] = %d, fdFrw[RD] = %d\n", pairs[nChildren - 1].fdFrw[WR], pairs[nChildren - 1].fdFrw[RD])
 	CHECK (ret, "problem with pipe\n");
 
 	pairs [nChildren - 1].fdBck[WR] = fdTo;
@@ -365,18 +329,6 @@ struct pairInfo* initPairs (long int nChildren, int fdFrom, int fdTo)
 }
 
 //------------------------------------------------------------------------------
-
-// struct pairInfo
-// {
-// 	int childNumber;
-// 	int fdFrw  [2];
-// 	int fdBck [2];
-// 	int parentBufLen;
-// 	char* parentBuffer;
-// 	int childBufLen;
-// 	char* childBuffer;
-//
-// };
 
 int pairsDump (struct pairInfo* pairs, int nChildren)
 {
@@ -414,10 +366,8 @@ int maxFdVal (struct pairInfo* pairs, int nChildren)
 
 int bufferSize (int childNumber, int nChildren)
 {
-	// PRINT ("power = %d", power(3, nChildren - childNumber));
 	int a = 1024 * power(3, nChildren - childNumber);
 	int retVal = (a < 131072) ? a : 131072;
-	// PRINT ("bufferSize = %d\n", retVal);
 	return	retVal;
 }
 
