@@ -254,7 +254,8 @@ int throwByte (int consPid, char byte)
         while (childContinue)
         {
             alarm (2);
-            sigsuspend (&emptyMask);        // <----- critical 2: SIGALARM and SIGUSR fight 
+            sigsuspend (&emptyMask);        // <----- critical 2: SIGALARM and SIGUSR fight
+                                            // <----- father and child fidht for mask of came signals of child
 //------------------------------critical 1 finish
             alarm (0);
         }

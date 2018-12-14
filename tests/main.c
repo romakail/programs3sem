@@ -20,14 +20,18 @@ int isSameFile (int fd1, int fd2);
 
 int main (int argc, char** argv)
 {
-	int ret = 1;
-	int power = 30;
-	int x = 3;
-	for (int i = 0; i < power; i++)
-	{
-		ret *= x;
-		printf ("i = %d, ret = %d\n", i, ret);
-	}
+	fd_set a;
+	fd_set b;
+
+	FD_ZERO (&a);
+	FD_ZERO (&b);
+
+	if (a == b)
+		printf ("equal\n");
+	else
+		printf ("not equal\n");
+
+	return 0;
 }
 
 int isSameFile (int fd1, int fd2)
