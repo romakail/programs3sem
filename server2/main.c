@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 
-#define CHILD_BUFFER_LENGHT 128
+#define CHILD_BUFFER_LENGHT 128 * 1024
 #define BLUE  "\x1B[34m"
 #define NORM  "\x1B[0m"
 #define RED   "\x1B[31m"
@@ -196,10 +196,11 @@ int child (struct pairInfo* pairPtr)
 		readRet  = read (pairPtr->fdFrw[RD], buffer, CHILD_BUFFER_LENGHT);
 		CHECK (readRet , "problem with read\n")
 
-		sleep(1);
-
 		writeRet = write(pairPtr->fdBck[WR], buffer, readRet);
 		CHECK (writeRet, "problem with write\n")
+
+		if (pairPtr->childNumber == 2)
+			sleep(1);
 	}
 
 	close (pairPtr->fdFrw[RD]);
@@ -291,10 +292,14 @@ int initFdSets (fd_set* readFdsPtr, fd_set* writeFdsPtr, struct pairInfo* pairs,
 
 	for (int i = 0; i < nChildren - 1; i++)
 	{
-		if (pairs[i]  .fdBck[RD] != -1)
+		if ((pairs[i]  .fdBck[RD] != -1) && (pairs[i].allowRead))
 			FD_SET (pairs[i]  .fdBck[RD],  readFdsPtr);
-		if (pairs[i+1].fdFrw[WR] != -1)
+
+		// if (pairs[i+1]  .fdFrw[RD] != -1)
+		// 	FD_SET (pairs[i+1].fdFrw[RD], readFdsPtr);
+		if ((pairs[i+1].fdFrw[WR] != -1) && (pairs[i].nReadBytes != pairs[i].nWrittenBytes) )
 			FD_SET (pairs[i+1].fdFrw[WR], writeFdsPtr);
+
 	}
 	return 0;
 }

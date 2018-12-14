@@ -20,17 +20,17 @@ int isSameFile (int fd1, int fd2);
 
 int main (int argc, char** argv)
 {
-	fd_set a;
-	fd_set b;
+	char buf [3] = {};
 
-	FD_ZERO (&a);
-	FD_ZERO (&b);
+	int mkfifoRet = mkfifo ("fifo", 666);
+	printf ("mkfifo returned %d\n", mkfifoRet);
+	int fd = open ("fifo", O_RDWR | 666);
+	int writeRet = write (fd, "aaa", 3);
+	printf ("writeReturned %d\n", writeRet);
+	fd = open ("fifo", O_RDONLY | O_NONBLOCK);
+	write (1, buf, read(fd, buf, 3));
 
-	if (a == b)
-		printf ("equal\n");
-	else
-		printf ("not equal\n");
-
+	printf ("HAHA");
 	return 0;
 }
 
