@@ -238,7 +238,6 @@ int throwByte (int consPid, char byte)
 
     for (int i = 0; i < 8; i++)
     {
-//--------------------------------critical 1 start
         if (((1 << (7-i)) & byte) == 0)
         {
             // PRINT ("bit = 0\n");
@@ -254,9 +253,7 @@ int throwByte (int consPid, char byte)
         while (childContinue)
         {
             alarm (2);
-            sigsuspend (&emptyMask);        // <----- critical 2: SIGALARM and SIGUSR fight
-                                            // <----- father and child fidht for mask of came signals of child
-//------------------------------critical 1 finish
+            sigsuspend (&emptyMask);
             alarm (0);
         }
     }
@@ -276,11 +273,9 @@ char receiveByte (int prodPid)
 
     for (int i = 0; i < 8; i++)
     {
-//----------------------------------critical 1 start
         sigsuspend (&emptyMask);
         byte = (byte << 1) | bit;
         kill (prodPid, SIGUSR2);
-//----------------------------------crititcal 1 finish
     }
 
     // PRINT ("%c ", byte);

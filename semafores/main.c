@@ -225,6 +225,40 @@ int streamer (void* shMemPtr, int semId, char* fileFromName)
     sem_do3 (NO_FOL_FOR_FOL, -1, 0,                 // checking if a NEW follower triggered first sem_do3
              NO_FOL_FOR_FOL,  1, 0,
              NO_STR_FOR_FOL,  1, SEM_UNDO)
+
+
+     do
+     {
+         //produce_item();
+         sem_do3 (NO_FOL_FOR_STR,  1, IPC_NOWAIT,
+                  NO_FOL_FOR_STR, -1, IPC_NOWAIT,
+                  MUT_EX        , -1, SEM_UNDO)
+
+         //put_item();
+         //-----------------------------start of a critical section----------------------------
+         //--------------streamer and follower, compete for an access to shmem---------------
+
+         readRetValue = read (fdFrom, packagePtr->buffer, SIZE_OF_SHARED_BUFFER);
+         if (readRetValue == -1)
+         {
+             perror ("problems with read\n");
+             return -1;
+         }
+         packagePtr->size = readRetValue;
+
+         //-----------------------------end of a critical section---------------------------------
+
+         sem_do  (MUT_EX,  1, SEM_UNDO)
+
+         sem_do  (FULL  ,  1, SEM_UNDO)
+
+         sem_do3 (NO_FOL_FOR_STR, -1, IPC_NOWAIT,    // the order is dramatically important =(
+                  NO_FOL_FOR_STR,  1, IPC_NOWAIT,
+                  EMPTY         , -1, 0)
+
+     }while (readRetValue != 0);
+
+
     return 0;
 }
 
@@ -374,130 +408,3 @@ int modeDetection (char* mode)
 }
 
 //-------------------------------------------------------------------
-
-
-
-
-
-
-
-/*
-
-   int main (int argc, char** argv)
-   {
-   if ((argc > 3) || (argc == 1))
-   {
-   printf ("wrong number of arguments\n");
-   return 0;
-   }
-   else if (argc == 0)
-   {
-   printf ("something wrong with argv pointer\n");
-   return 0;
-   }
-
-   int mode = modeDetection (argv[1]);
-//printf ("mode = %d\n", mode);
-if (mode == 0) // streamer
-{
-if (argc == 2)
-{
-printf ("no file\n");
-return 0;
-}
-
-char followerName [NAME_PID_LEN] = {};
-
-int rdQueFd = open ("readersque", O_RDWR);
-if (rdQueFd == -1)
-{
-printf ("error with opening readersque\n");
-return -1;
-}
-
-int readRet = read (rdQueFd, followerName, NAME_PID_LEN);
-
-
-//if a process dies here other end won't close
-
-//int fdTo = open (followerName, O_WRONLY);
-int fdTo = open (followerName, O_WRONLY | O_NONBLOCK);
-if (errno == ENXIO)
-{
-printf ("errno == ENXIO\n");
-return -1;
-}
-
-char buffer [BUFFER_LENGHT] = {};
-
-int fdFrom = open (argv [2], 0);
-
-int readRetValue = 1;
-int writeRetValue = 0;
-while (readRetValue != 0)
-{
-readRetValue  = read  (fdFrom, buffer, BUFFER_LENGHT);
-if (readRetValue != 0)
-{
-writeRetValue = write (fdTo, buffer, readRetValue);
-}
-}
-
-close (fdFrom);
-close (fdTo);
-close (rdQueFd);
-return 0;
-
-}
-else if (mode == 1) // follower
-{
-if (argc == 3)
-{
-    printf ("I dont need any more arguments in this mode\n");
-    return 0;
-}
-
-char namePid [NAME_PID_LEN] = {};
-sprintf (namePid, "%d", getpid());
-mkfifo (namePid, 0644);
-
-//
-int rdQueFd = open ("readersque", O_WRONLY);
-write (rdQueFd, namePid, NAME_PID_LEN);
-//
-
-
-int fdFrom = open (namePid, O_RDONLY);
-//fcntl (fdFrom, F_SETFL, O_RDONLY | O_NONBLOCK);
-
-
-char buffer [BUFFER_LENGHT] = {};
-
-int readRetValue = BUFFER_LENGHT;
-
-while (readRetValue == BUFFER_LENGHT)
-{
-    readRetValue = read (fdFrom, buffer, BUFFER_LENGHT);
-    if (readRetValue > 0)
-        write (STDOUT_FILENO, buffer, readRetValue);
-}
-
-
-close  (fdFrom);
-
-close (rdQueFd);
-unlink (namePid);
-return 0;
-}
-else
-{
-    printf ("some mistake occured\n");
-    return 0;
-}
-
-return 0;
-}
-
-
-
-*/

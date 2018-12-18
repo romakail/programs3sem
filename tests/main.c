@@ -13,81 +13,78 @@
 #include <sys/time.h>
 #include <errno.h>
 
-
-long int extractNum (const char* stringNum);
-
-int isSameFile (int fd1, int fd2);
+// 
+// long int extractNum (const char* stringNum);
+//
+// int isSameFile (int fd1, int fd2);
 
 int main (int argc, char** argv)
 {
 	char buf [3] = {};
 
-	int mkfifoRet = mkfifo ("fifo", 666);
-	printf ("mkfifo returned %d\n", mkfifoRet);
-	int fd = open ("fifo", O_RDWR | 666);
-	int writeRet = write (fd, "aaa", 3);
-	printf ("writeReturned %d\n", writeRet);
+	mkfifo ("fifo", 0644);
+	int fd = open ("fifo", O_RDWR);
+	write (fd, "aaa", 3);
 	fd = open ("fifo", O_RDONLY | O_NONBLOCK);
 	write (1, buf, read(fd, buf, 3));
 
-	printf ("HAHA");
 	return 0;
 }
 
-int isSameFile (int fd1, int fd2)
-{
-	struct stat stat1;
-	struct stat stat2;
-
-	int ret = fstat(fd1, &stat1);
-	if (ret == -1)
-	{
-		perror ("Fstat dont work\n");
-		return 0;
-	}
-
-		ret = fstat(fd2, &stat2);
-	if (ret == -1)
-	{
-		perror ("Fstat dont work\n");
-		return 0;
-	}
-
-	if ((stat1.st_ino == stat2.st_ino) && (stat1.st_dev == stat2.st_dev))
-		return 1;
-	else
-		return 0;
-}
-
-
-long int extractNum (const char* stringNum)
-{
-	char* endptr = 0;
-	long int val = strtol (stringNum, &endptr, 10);
-
-	if (errno == ERANGE)
-	{
-		perror ("overflow of long int\n");
-		exit (0);
-	}
-	else if (errno == EINVAL)
-	{
-		perror ("no digits seen\n");
-		exit (0);
-	}
-	else if (val < 0)
-	{
-		perror ("less then zero");
-		exit (0);
-	}
-	else if (*endptr != '\0')
-	{
-		perror ("I found not a digit\n");
-		exit (0);
-	}
-
-	return val;
-}
+// int isSameFile (int fd1, int fd2)
+// {
+// 	struct stat stat1;
+// 	struct stat stat2;
+//
+// 	int ret = fstat(fd1, &stat1);
+// 	if (ret == -1)
+// 	{
+// 		perror ("Fstat dont work\n");
+// 		return 0;
+// 	}
+//
+// 		ret = fstat(fd2, &stat2);
+// 	if (ret == -1)
+// 	{
+// 		perror ("Fstat dont work\n");
+// 		return 0;
+// 	}
+//
+// 	if ((stat1.st_ino == stat2.st_ino) && (stat1.st_dev == stat2.st_dev))
+// 		return 1;
+// 	else
+// 		return 0;
+// }
+//
+//
+// long int extractNum (const char* stringNum)
+// {
+// 	char* endptr = 0;
+// 	long int val = strtol (stringNum, &endptr, 10);
+//
+// 	if (errno == ERANGE)
+// 	{
+// 		perror ("overflow of long int\n");
+// 		exit (0);
+// 	}
+// 	else if (errno == EINVAL)
+// 	{
+// 		perror ("no digits seen\n");
+// 		exit (0);
+// 	}
+// 	else if (val < 0)
+// 	{
+// 		perror ("less then zero");
+// 		exit (0);
+// 	}
+// 	else if (*endptr != '\0')
+// 	{
+// 		perror ("I found not a digit\n");
+// 		exit (0);
+// 	}
+//
+// 	return val;
+// }
 
 
 

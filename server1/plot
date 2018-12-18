@@ -1,9 +1,0 @@
-child:
-	read from fdFrw[RD] to your buffer
-	write from buffer to fdBack[WR]
-
-
-parent:
-	while(1)
-		for (i in nChildren)
-			write fdFrw

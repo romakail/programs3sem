@@ -20,18 +20,21 @@ int isSameFile (int fd1, int fd2);
 
 int main (int argc, char** argv)
 {
-	if (argc != 2)
+	if (argc != 3)
     {
         printf ("wrong number of arguments\n");
 		return -1;
     }
 
 	int fd1 = open(argv[1], O_RDONLY);
-	int fd2 = open(argv[1], O_RDONLY);
+	int fd2 = open(argv[2], O_RDONLY);
+
+	// if link/unlink, rename or mount functions are made by other processes between opens
+	// we cannot be sure about correctness of this function.
 
 	if (isSameFile (fd1, fd2))
 	{
-		printf ("One file\n");
+		printf ("Same file\n");
 		return 1;
 	}
 	else
